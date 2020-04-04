@@ -76,18 +76,10 @@ class BlochSphere extends BABYLON.Mesh {
 
     // TODO: Combine both probAmplitude methods
     getProbAmplitude0() {
-        // var probAmpComplex = math.complex(Math.cos(this.getInclinationRadians() / 2), 0);
-        // return math.round(probAmpComplex, 4);
         return this.probAmplitude0;
     }
 
     getProbAmplitude1() {
-        // var sinHalfIncl = Math.sin(this.getInclinationRadians() / 2);
-        // var probAmpComplex = math.multiply(
-        //     math.complex(Math.cos(this.getAzimuthRadians()),
-        //                  Math.sin(this.getAzimuthRadians())),
-        //     sinHalfIncl);
-        // return math.round(probAmpComplex, 4);
         return this.probAmplitude1;
     }
 
@@ -300,11 +292,6 @@ class BlochSphere extends BABYLON.Mesh {
     }
 
     updateQuantumStateArrow() {
-        // var coordinates = this.getCartesianCoords()
-        // if (!this.allowMultipleStateLines) {
-        //     if (this.quantumStateLine) this.quantumStateLine.dispose();
-        //     if (this.quantumStateLineCap) this.quantumStateLineCap.dispose();
-        // }
 
         this.quantumStateArrow.rotation = new BABYLON.Vector3(-this.getInclinationRadians(), -this.getAzimuthRadians(), 0);
 

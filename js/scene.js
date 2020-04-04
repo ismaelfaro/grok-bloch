@@ -37,7 +37,6 @@ function createScene(engine, canvas, config) {
 
     BABYLON.SceneOptimizer.OptimizeAsync(scene);
 
-    // scene.clearColor = new BABYLON.Color3( .75, .75, .75);
     scene.clearColor = new BABYLON.Color3(1.0, 1.0, 1.0);
 
     // Add a camera to the scene and attach it to the canvas
@@ -258,7 +257,6 @@ function createScene(engine, canvas, config) {
    
     /////// END Gates panel
 
-
     /////// Top panel (State in Dirac notation)
     // \vert \psi \rangle = \sqrt{ 0.80} \vert 0 \rangle + (\sqrt{0.20}) e^{i 0.25\pi} \vert 1 \rangle
     // \vert \psi \rangle = \sqrt{ 0.80} \vert 0 \rangle + (\sqrt{0.20}) e^{i 0.25\pi} \vert 1 \rangle
@@ -294,7 +292,6 @@ function createScene(engine, canvas, config) {
     UiPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
     UiPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
     // TODO: Make this info appear in a different form (e.g. a vector)
-    //advancedTexture.addControl(UiPanel);
 
     // Grid labels
     var basisLabel0 = new BABYLON.GUI.TextBlock();
@@ -324,9 +321,7 @@ function createScene(engine, canvas, config) {
     qubitStateDiracTextPanel.addControl(quantumStateDiracGrid);
     //// END Dirac notation grid
 
-
     // Grid
- 
     quantumStateGrid.width = adaptRatioStr(300);
     quantumStateGrid.height = adaptRatioStr(80);
 
@@ -338,7 +333,6 @@ function createScene(engine, canvas, config) {
 
     UiPanel.addControl(quantumStateGrid);
     /////// END Bottom panel
-
 
     /////// User may paste one or more state vectors for display on the Bloch sphere
     const strToComplexNum = function(complexStr) {
@@ -443,9 +437,7 @@ function createScene(engine, canvas, config) {
 
     });
 
-
     advancedTexture.addControl(statevectorInputText);
-
 
     /////// Control panel
     // Define selection panel and groups
@@ -480,9 +472,7 @@ function createScene(engine, canvas, config) {
     selectBox.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
 
     // TODO: Uncomment next line if sliders desired
-    // advancedTexture.addControl(selectBox);
     /////// END Control panel
-
 
     scene.onPointerObservable.add((pointerInfo) => {
         switch (pointerInfo.type) {
@@ -500,10 +490,7 @@ function createScene(engine, canvas, config) {
         }
     });
 
-    //blochSphere.updateQuantumStateLine();
     updateQuantumStateDisplay(config);
-
-    // return the created scene
     return scene;
 };
 
@@ -566,8 +553,7 @@ function updateQuantumStateDisplay(config) {
     outcomeProbabilityBar.value = blochSphere.getProbability0();
 
     probAmplitudeTextBlock0.text = blochSphere.getProbAmplitude0().re.toFixed(2); // +
-    // (imaginary0 < 0 ? " - " : " + ") +
-    // Math.abs(imaginary0).toFixed(2) + "i";
+
     probAmplitudeTextBlock0.color = "black";
     probAmplitudeTextBlock0.fontSize = config.fontSize;
 
