@@ -34,7 +34,7 @@ function createScene(engine, canvas, config) {
     var rxm,rxp, rym, ryp, rzm, rzp = null;
 
     blochSphere = new BlochSphere("blochSphere", scene, 0, 0);
-
+    
     BABYLON.SceneOptimizer.OptimizeAsync(scene);
 
     scene.clearColor = new BABYLON.Color3(1.0, 1.0, 1.0);
