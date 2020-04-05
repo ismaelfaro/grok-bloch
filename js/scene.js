@@ -491,7 +491,7 @@ function createScene(engine, canvas, config) {
     });
 
     updateQuantumStateDisplay(config);
-    return scene;
+    return {base: scene, blochSphere: blochSphere};
 };
 
 function azimuthRadiansToPiRadians(radians) {
@@ -544,6 +544,7 @@ function azimuthRadiansToPiRadians(radians) {
 
 function updateQuantumStateDisplay(config) {
     blochSphere.resetGlobalPhase();
+    // blochSphere.anim = true;
     probAmplitudeTextBlock0.dispose();
 
     var imaginary0 = blochSphere.getProbAmplitude0().im;

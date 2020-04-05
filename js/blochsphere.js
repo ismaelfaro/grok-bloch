@@ -30,6 +30,9 @@ class BlochSphere extends BABYLON.Mesh {
 
         this.allowMultipleStateLines = false;
 
+        this.anim = true;
+        this.tmpInc = 0;
+        this.tmpAzi = 0;
         this.setupSphere();
     }
 
@@ -293,7 +296,7 @@ class BlochSphere extends BABYLON.Mesh {
 
     updateQuantumStateArrow() {
 
-        this.quantumStateArrow.rotation = new BABYLON.Vector3(-this.getInclinationRadians(), -this.getAzimuthRadians(), 0);
+        this.quantumStateArrow.rotation = new BABYLON.Vector3(-this.tmpInc, -this.tmpAzi, 0);
 
     }
 
