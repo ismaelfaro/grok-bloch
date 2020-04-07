@@ -61,19 +61,19 @@ class BlochSphere extends BABYLON.Mesh {
     }
 
     setProbAmplitudes(probAmp0, probAmp1) {
-        console.log("In setProbAmplitudes(), probAmp0: " + probAmp0 + ", probAmp1: " + probAmp1);
+        // console.log("In setProbAmplitudes(), probAmp0: " + probAmp0 + ", probAmp1: " + probAmp1);
         this.probAmplitude0 = probAmp0;
         this.probAmplitude1 = probAmp1;
 
         var inclRads = 2 * math.acos(math.abs(probAmp0));
-        console.log("inclRads: " + inclRads);
+        // console.log("inclRads: " + inclRads);
         this.setInclinationRadians(inclRads);
 
         var probAmp0Polar = probAmp0.toPolar();
         var probAmp1Polar = probAmp1.toPolar();
         var azimRads = (probAmp1.toPolar().phi - probAmp0.toPolar().phi);
 
-        console.log("azimRads: " + azimRads);
+        // console.log("azimRads: " + azimRads);
         this.setAzimuthRadians(azimRads);
     }
 
@@ -96,7 +96,7 @@ class BlochSphere extends BABYLON.Mesh {
 
     setInclinationRadians(inclinationRadians) {
         this.inclinationRadians = inclinationRadians;
-        console.log("this.inclinationRadians: " + this.inclinationRadians);
+        // console.log("this.inclinationRadians: " + this.inclinationRadians);
         this.updateQuantumStateArrow();
     }
 
@@ -106,7 +106,7 @@ class BlochSphere extends BABYLON.Mesh {
 
     setAzimuthRadians(azimuthRadians) {
         this.azimuthRadians = (azimuthRadians + Math.PI * 2) % (Math.PI * 2);
-        console.log("this.azimuthRadians: " + this.azimuthRadians);
+        // console.log("this.azimuthRadians: " + this.azimuthRadians);
         this.updateQuantumStateArrow();
     }
 
@@ -128,9 +128,9 @@ class BlochSphere extends BABYLON.Mesh {
             [this.getProbAmplitude0()],
             [this.getProbAmplitude1()]
         ]);
-        console.log("currentQuantumState: " + currentQuantumState);
+        // console.log("currentQuantumState: " + currentQuantumState);
         var newQuantumState = math.multiply(gate.matrix, currentQuantumState);
-        console.log("newQuantumState: " + newQuantumState);
+        // console.log("newQuantumState: " + newQuantumState);
 
         var probAmp0 = math.subset(newQuantumState, math.index(0, 0));
         var probAmp1 = math.subset(newQuantumState, math.index(1, 0));

@@ -148,25 +148,25 @@ function createScene(engine, canvas, config) {
     leftPanel.addControl(zeroStateBtn);
 
     var xGateBtn = CreateImageButton("textures/x-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.X);
+        quantumEngine.applyGate(Gate.X);
         updateQuantumStateDisplay(config);
     });
     leftPanel.addControl(xGateBtn);
     
     var yGateBtn = CreateImageButton("textures/y-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.Y);
+        quantumEngine.applyGate(Gate.Y);
         updateQuantumStateDisplay(config);
     });
     leftPanel.addControl(yGateBtn);
 
     var zGateBtn = CreateImageButton("textures/z-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.Z);
+        quantumEngine.applyGate(Gate.Z);
         updateQuantumStateDisplay(config);
     });
     leftPanel.addControl(zGateBtn);
 
     var hGateBtn = CreateImageButton("textures/h-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.H);
+        quantumEngine.applyGate(Gate.H);
         updateQuantumStateDisplay(config);
     });
     leftPanel.addControl(hGateBtn);
@@ -181,49 +181,49 @@ function createScene(engine, canvas, config) {
     });
 
     var rxPi12GateBtn = CreateImageButton("textures/rx+gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(rxp);
+        quantumEngine.applyGate(rxp);
         updateQuantumStateDisplay(config);
     });
     leftPanel.addControl(rxPi12GateBtn);
 
     var ryPi12GateBtn = CreateImageButton("textures/ry+gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(ryp);
+        quantumEngine.applyGate(ryp);
         updateQuantumStateDisplay(config);
     });
     leftPanel.addControl(ryPi12GateBtn);
 
     var rzPi12GateBtn = CreateImageButton("textures/rz+gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(rzp);
+        quantumEngine.applyGate(rzp);
         updateQuantumStateDisplay(config);
     });
     leftPanel.addControl(rzPi12GateBtn);
 
     var oneStateBtn = CreateImageButton("textures/one-state.png", buttonSize, paddingTop, () => {
-        blochSphere.setProbAmplitudes(math.complex(0, 0), math.complex(1, 0));
+        quantumEngine.setProbAmplitudes(math.complex(0, 0), math.complex(1, 0));
         updateQuantumStateDisplay(config);
     });
     rightPanel.addControl(oneStateBtn);
 
     var sGateBtn = CreateImageButton("textures/s-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.S);
+        quantumEngine.applyGate(Gate.S);
         updateQuantumStateDisplay(config);
     });
     rightPanel.addControl(sGateBtn);
 
     var sDagGateBtn = CreateImageButton("textures/s-dag-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.St);
+        quantumEngine.applyGate(Gate.St);
         updateQuantumStateDisplay(config);
     });
     rightPanel.addControl(sDagGateBtn);
 
     var tGateBtn = CreateImageButton("textures/t-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.T);
+        quantumEngine.applyGate(Gate.T);
         updateQuantumStateDisplay(config);
     });
     rightPanel.addControl(tGateBtn);
 
     var tDagGateBtn = CreateImageButton("textures/t-dag-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.Tt);
+        quantumEngine.applyGate(Gate.Tt);
         updateQuantumStateDisplay(config);
     });
     rightPanel.addControl(tDagGateBtn);
@@ -238,19 +238,19 @@ function createScene(engine, canvas, config) {
     });
 
     var rxmPi12GateBtn = CreateImageButton("textures/rx-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(rxm);
+        quantumEngine.applyGate(rxm);
         updateQuantumStateDisplay(config);
     });
     rightPanel.addControl(rxmPi12GateBtn);
 
     var rymPi12GateBtn = CreateImageButton("textures/ry-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(rym);
+        quantumEngine.applyGate(rym);
         updateQuantumStateDisplay(config);
     });
     rightPanel.addControl(rymPi12GateBtn);
 
     var rzmPi12GateBtn = CreateImageButton("textures/rz-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(rzm);
+        quantumEngine.applyGate(rzm);
         updateQuantumStateDisplay(config);
     });
     rightPanel.addControl(rzmPi12GateBtn);
@@ -303,7 +303,6 @@ function createScene(engine, canvas, config) {
     basisLabel1.text = "|1⟩";
     basisLabel1.color = "black";
     basisLabel1.fontSize = config.fontSize;
-
 
     //// Dirac notation grid
     quantumStateDiracGrid.width = adaptRatioStr(546);
@@ -545,6 +544,7 @@ function azimuthRadiansToPiRadians(radians) {
 function updateQuantumStateDisplay(config) {
     blochSphere.resetGlobalPhase();
     // blochSphere.anim = true;
+    
     probAmplitudeTextBlock0.dispose();
 
     var imaginary0 = blochSphere.getProbAmplitude0().im;
