@@ -65,8 +65,14 @@
         stats: element('nlStats'),
         shots: element('nlShots'),
         shotsOut: element('nlShotsOut'),
-        idleNow: element('nlIdleNow')
+        idleNow: element('nlIdleNow'),
+        headerScore: element('nlHeaderScore')
     };
+
+    /** Phones and small windows, matching the media query in the stylesheet. */
+    function isCompactLayout() {
+        return window.matchMedia('(max-width: 760px), (max-height: 560px)').matches;
+    }
 
     var loadedEntries = [];
 
@@ -250,6 +256,11 @@
         controls.grade.textContent = grade.letter;
         controls.grade.className = 'nl-grade ' + grade.className;
 
+        // Keeps the score readable while the panel is folded away, which is how
+        // it starts out on a phone.
+        controls.headerScore.innerHTML = '<span>' + (fidelity * 100).toFixed(1) + '</span>' +
+            '<span class="nl-grade nl-mini ' + grade.className + '">' + grade.letter + '</span>';
+
         // Stretch the bar: the interesting range is the top few percent.
         controls.scoreBar.style.width = Math.max(0, Math.min(1, fidelity)) * 100 + '%';
         controls.scoreBar.style.background = window.getComputedStyle(controls.grade).backgroundColor;
@@ -298,8 +309,9 @@
 
     populateModels();
 
-    // On a narrow window the panel would sit on top of the outcome probability
-    // bar, so start out of the way and let the user open it.
+    // On a narrow window the panel would sit on top of the sphere or the
+    // outcome probability bar, so start out of the way and let the user open
+    // it. The score stays visible in the header either way.
     if (window.innerWidth < 1250) {
         panel.classList.add('nl-collapsed');
         controls.toggle.textContent = 'Show';

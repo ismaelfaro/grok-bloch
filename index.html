@@ -30,6 +30,9 @@
 
 <head>
     <meta http-equiv="Content-Type" content="text/html" charset="utf-8" />
+    <!-- The sphere is dragged with one finger, so page zoom and scroll are turned off. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <!--meta property="twitter:image" content="https://javafxpert.github.io/grok-bloch/images/bloch-sphere.png"-->
     <title>v0.12 Grokking the Bloch Sphere</title>
     <!--- Link to the last version of BabylonJS --->
@@ -53,12 +56,16 @@
             height: 100%;
             margin: 0;
             padding: 0;
+            overscroll-behavior: none;
+            -webkit-text-size-adjust: 100%;
         }
 
         #renderCanvas {
             width: 100%;
             height: 100%;
             touch-action: none;
+            display: block;
+            outline: none;
         }
 
         /* ---------- Noise lab panel ---------- */
@@ -95,6 +102,27 @@
         #noiseLab .nl-title {
             font-weight: 600;
             font-size: 13px;
+            margin-right: auto;
+        }
+
+        /* Score shown in the header while the panel is folded away. */
+        #noiseLab .nl-header-score {
+            display: none;
+            align-items: baseline;
+            gap: 5px;
+            margin-right: 8px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #noiseLab.nl-collapsed .nl-header-score {
+            display: flex;
+        }
+
+        #noiseLab .nl-grade.nl-mini {
+            font-size: 11px;
+            padding: 0 6px;
+            margin-left: 0;
         }
 
         #noiseLab .nl-title .nl-dot {
@@ -359,6 +387,105 @@
                 color: #24292f;
             }
         }
+
+        /*
+         * Phones and small windows: the panel becomes a bottom sheet so the
+         * sphere keeps the whole screen, and controls grow to finger size.
+         */
+        @media (max-width: 760px),
+        (max-height: 560px) {
+            #noiseLab {
+                left: 6px;
+                right: 6px;
+                bottom: max(6px, env(safe-area-inset-bottom));
+                top: auto;
+                width: auto;
+                max-height: 66%;
+                font-size: 13px;
+                border-radius: 12px;
+            }
+
+            #noiseLab .nl-header {
+                padding: 11px 12px;
+            }
+
+            #noiseLab .nl-title {
+                font-size: 14px;
+            }
+
+            #noiseLab .nl-body {
+                padding: 4px 12px 12px 12px;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+            }
+
+            #noiseLab .nl-note {
+                font-size: 12px;
+            }
+
+            #noiseLab .nl-specs {
+                font-size: 12px;
+            }
+
+            #noiseLab .nl-chip {
+                font-size: 12px;
+                padding: 3px 8px;
+            }
+
+            #noiseLab .nl-program {
+                max-height: 92px;
+            }
+
+            #noiseLab .nl-score {
+                font-size: 32px;
+            }
+
+            #noiseLab .nl-bar {
+                height: 9px;
+            }
+        }
+
+        /*
+         * Finger sized controls on any touch screen, tablets included, where the
+         * bottom sheet layout above does not apply.
+         */
+        @media (pointer: coarse) {
+            #noiseLab button {
+                font-size: 13px;
+                padding: 9px 12px;
+                min-height: 40px;
+            }
+
+            #noiseLab select {
+                font-size: 14px;
+                padding: 9px 6px;
+                min-height: 40px;
+            }
+
+            #noiseLab .nl-check {
+                margin: 9px 0;
+                min-height: 32px;
+            }
+
+            #noiseLab .nl-check input[type=checkbox] {
+                width: 18px;
+                height: 18px;
+            }
+
+            /* Taller hit area for dragging a slider with a thumb. */
+            #noiseLab input[type=range] {
+                height: 32px;
+            }
+
+            #noiseLab .nl-header {
+                padding: 12px;
+            }
+
+            #noiseLab .nl-toggle,
+            #noiseLab #nlToggle {
+                min-width: 62px;
+            }
+        }
     </style>
 </head>
 
@@ -368,6 +495,7 @@
     <div id="noiseLab">
         <div class="nl-header" id="nlHeader">
             <span class="nl-title"><span class="nl-dot"></span>Qubit Noise Lab</span>
+            <span class="nl-header-score" id="nlHeaderScore"></span>
             <button id="nlToggle" title="Show or hide the noise lab">Hide</button>
         </div>
         <div class="nl-body" id="nlBody">

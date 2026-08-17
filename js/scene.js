@@ -28,6 +28,21 @@ var mixedStateTextBlock = new BABYLON.GUI.TextBlock();
 
 var outcomeProbabilityBar = new BABYLON.GUI.Slider();
 
+// Controls whose size depends on the window. Kept here so the layout can be
+// recomputed when the window is resized or a phone is rotated.
+var responsiveTargets = {
+    camera: null,
+    gateButtons: [],
+    radioHeaders: [],
+    leftPanel: null,
+    rightPanel: null,
+    outcomeProbabilityPanel: null,
+    outcomeProbabilityHeading: null,
+    outcomeProbabilityLabels: [],
+    diracPanels: [],
+    statevectorInput: null
+};
+
 function adaptRatio(value) {
     var devicePixelRatio = window.devicePixelRatio || 1.0;
     return devicePixelRatio * value;
@@ -35,6 +50,126 @@ function adaptRatio(value) {
 
 function adaptRatioStr(value) {
     return adaptRatio(value) + "px";
+}
+
+/** Phone sized screens, and desktop windows squeezed down to the same shape. */
+function isCompactLayout() {
+    return window.innerWidth < 760 || window.innerHeight < 560;
+}
+
+/**
+ * Resizes the in-scene controls and reframes the camera for the current window.
+ * On a phone the gate buttons shrink to two narrow columns and the sphere is
+ * pushed further away so that it, its labels and the phase disk all fit.
+ */
+function applyResponsiveLayout(config) {
+    var width = window.innerWidth;
+    var height = window.innerHeight;
+    var compact = isCompactLayout();
+    var tiny = width < 420;
+
+    var buttonSize = tiny ? 40 : (compact ? 48 : 65);
+    var buttonPadding = compact ? 3 : 5;
+    var uiScale = compact ? (tiny ? 0.55 : 0.65) : 1;
+
+    config.fontSize = 28 * (window.devicePixelRatio || 1.0) * uiScale;
+
+    ////// Gate buttons, in two right hand columns
+    for (var i = 0; i < responsiveTargets.gateButtons.length; i++) {
+        var button = responsiveTargets.gateButtons[i];
+        button.width = adaptRatioStr(buttonSize);
+        button.height = adaptRatioStr(buttonSize);
+        button.paddingTop = adaptRatioStr(buttonPadding);
+    }
+    // Both columns are right aligned and centre their buttons, so the left
+    // column clears the right one only if it is two button widths wider.
+    if (responsiveTargets.leftPanel) {
+        responsiveTargets.leftPanel.width = adaptRatioStr(compact ? buttonSize * 3 + 6 : 250);
+    }
+    if (responsiveTargets.rightPanel) {
+        responsiveTargets.rightPanel.width = adaptRatioStr(compact ? buttonSize + 2 : 110);
+    }
+
+    // The rotation angle radio buttons were sized in raw texture pixels, which
+    // made them shrink to a third of their size on a 3x density phone.
+    for (var r = 0; r < responsiveTargets.radioHeaders.length; r++) {
+        var radioEntry = responsiveTargets.radioHeaders[r];
+
+        // Side by side the label runs off the edge of a narrow column, so on a
+        // phone the label goes underneath its radio button instead.
+        radioEntry.header.isVertical = compact;
+        radioEntry.header.height = adaptRatioStr(compact ? 44 : 80);
+        radioEntry.radio.width = adaptRatioStr(compact ? 18 : 24);
+        radioEntry.radio.height = adaptRatioStr(compact ? 18 : 24);
+
+        var radioLabel = radioEntry.header.children && radioEntry.header.children[1];
+        if (radioLabel) {
+            radioLabel.text = compact ? radioEntry.shortText : radioEntry.text;
+            radioLabel.width = adaptRatioStr(compact ? 38 : 80);
+            radioLabel.height = adaptRatioStr(compact ? 20 : 80);
+            radioLabel.fontSize = adaptRatio(compact ? 12 : 16);
+        }
+    }
+
+    ////// Outcome probability bar, pinned near the left edge when compact
+    if (responsiveTargets.outcomeProbabilityPanel) {
+        var barHeight = compact ? Math.max(120, Math.min(240, height * 0.32)) : 290;
+        outcomeProbabilityBar.height = adaptRatioStr(barHeight);
+        outcomeProbabilityBar.width = adaptRatioStr(compact ? 18 : 30);
+        responsiveTargets.outcomeProbabilityPanel.height = adaptRatioStr(barHeight + 120);
+        responsiveTargets.outcomeProbabilityPanel.linkOffsetX =
+            adaptRatioStr(compact ? -(width / 2 - (tiny ? 22 : 30)) : -320);
+
+        if (responsiveTargets.outcomeProbabilityHeading) {
+            responsiveTargets.outcomeProbabilityHeading.text = compact ? "P(|0⟩)" : "Prob of |0⟩";
+            responsiveTargets.outcomeProbabilityHeading.fontSize = config.fontSize;
+            responsiveTargets.outcomeProbabilityHeading.height = adaptRatioStr(30 * uiScale);
+        }
+        for (var l = 0; l < responsiveTargets.outcomeProbabilityLabels.length; l++) {
+            responsiveTargets.outcomeProbabilityLabels[l].fontSize = config.fontSize;
+            responsiveTargets.outcomeProbabilityLabels[l].height = adaptRatioStr(30 * uiScale);
+        }
+    }
+
+    ////// Dirac notation. Its grid uses fixed pixel columns, so the whole group
+    ////// is scaled about its top centre rather than resized.
+    var diracScale = Math.max(0.42, Math.min(1, (width - 24) / 560));
+    for (var d = 0; d < responsiveTargets.diracPanels.length; d++) {
+        var diracPanel = responsiveTargets.diracPanels[d];
+        diracPanel.transformCenterX = 0.5;
+        diracPanel.transformCenterY = 0;
+        diracPanel.scaleX = diracScale;
+        diracPanel.scaleY = diracScale;
+    }
+
+    // The state vector paste box is a desktop workflow, and on a phone it would
+    // sit underneath the noise lab sheet.
+    if (responsiveTargets.statevectorInput) {
+        responsiveTargets.statevectorInput.isVisible = !compact;
+    }
+
+    ////// Camera distance, so the sphere fills what is left of the screen
+    if (responsiveTargets.camera) {
+        var camera = responsiveTargets.camera;
+        // Width taken by the two gate columns and the probability bar, which
+        // the sphere and its labels have to stay clear of.
+        var reservedWidth = compact ? buttonSize * 2 + 60 : 380;
+        var usableWidth = Math.max(160, width - reservedWidth);
+
+        // Babylon keeps the vertical field of view fixed, so the horizontal one
+        // narrows as the window does.
+        var tanHalfVertical = Math.tan(camera.fov / 2);
+        var tanHalfHorizontal = tanHalfVertical * (usableWidth / height);
+
+        // Clearance for the axis labels sideways, and for the phase disk below.
+        var labelMargin = compact ? 1.35 : 1.45;
+        var radius = Math.max(labelMargin / tanHalfHorizontal, 2.1 / tanHalfVertical);
+        radius = Math.max(5, Math.min(14, radius));
+
+        camera.lowerRadiusLimit = radius;
+        camera.upperRadiusLimit = radius;
+        camera.radius = radius;
+    }
 }
 
 function createScene(engine, canvas, config) {
@@ -62,6 +197,7 @@ function createScene(engine, canvas, config) {
     camera.lowerRadiusLimit = 5;
     camera.upperRadiusLimit = 5;
     camera.attachControl(canvas, true);
+    responsiveTargets.camera = camera;
 
     // Add lights to the scene
     var light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(3, 7, -3), scene);
@@ -81,6 +217,7 @@ function createScene(engine, canvas, config) {
     outcomeProbabilityHeadingTextBlock.fontSize = config.fontSize;
     outcomeProbabilityHeadingTextBlock.height = adaptRatioStr(30);
     outcomeProbabilityPanel.addControl(outcomeProbabilityHeadingTextBlock);
+    responsiveTargets.outcomeProbabilityHeading = outcomeProbabilityHeadingTextBlock;
 
     const outcomeProbabilityTextBlock1 = new BABYLON.GUI.TextBlock();
     outcomeProbabilityTextBlock1.text = "1";
@@ -88,6 +225,7 @@ function createScene(engine, canvas, config) {
     outcomeProbabilityTextBlock1.fontSize = config.fontSize;
     outcomeProbabilityTextBlock1.height = adaptRatioStr(30);
     outcomeProbabilityPanel.addControl(outcomeProbabilityTextBlock1);
+    responsiveTargets.outcomeProbabilityLabels.push(outcomeProbabilityTextBlock1);
 
     outcomeProbabilityBar.minimum = 0;
     outcomeProbabilityBar.maximum = 1;
@@ -107,10 +245,12 @@ function createScene(engine, canvas, config) {
     outcomeProbabilityTextBlock0.fontSize = config.fontSize;
     outcomeProbabilityTextBlock0.height = adaptRatioStr(30);
     outcomeProbabilityPanel.addControl(outcomeProbabilityTextBlock0);
+    responsiveTargets.outcomeProbabilityLabels.push(outcomeProbabilityTextBlock0);
 
     advancedTexture.addControl(outcomeProbabilityPanel);
     outcomeProbabilityPanel.linkWithMesh(blochSphere);
     outcomeProbabilityPanel.linkOffsetX = adaptRatioStr(-320);
+    responsiveTargets.outcomeProbabilityPanel = outcomeProbabilityPanel;
     /////// END Outcome probability panel, bar, and labels
 
 
@@ -120,12 +260,14 @@ function createScene(engine, canvas, config) {
     leftPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
     leftPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER;
     advancedTexture.addControl(leftPanel);
+    responsiveTargets.leftPanel = leftPanel;
 
     var rightPanel = new BABYLON.GUI.StackPanel();
     rightPanel.width = adaptRatioStr(110);
     rightPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
     rightPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER;
     advancedTexture.addControl(rightPanel);
+    responsiveTargets.rightPanel = rightPanel;
 
     // TODO: Move these into styles
     var buttonSize = adaptRatioStr(65);
@@ -137,6 +279,7 @@ function createScene(engine, canvas, config) {
         Btn.width = buttonSize;
         Btn.height = buttonSize;
         Btn.onPointerDownObservable.add(observable);
+        responsiveTargets.gateButtons.push(Btn);
         return Btn;
     }
 
@@ -156,6 +299,13 @@ function createScene(engine, canvas, config) {
         var header = BABYLON.GUI.Control.AddHeader(button, text, "80px", { isHorizontal: true, controlFirst: true });
         header.height = "100px";
         header.color = "#777";
+        // The short label is used on phones, where "θ=" does not fit.
+        responsiveTargets.radioHeaders.push({
+            header: header,
+            radio: button,
+            text: text,
+            shortText: text.replace("θ=", "")
+        });
         parent.addControl(header); 
     }
 
@@ -270,6 +420,7 @@ function createScene(engine, canvas, config) {
     qubitStateDiracImagePanel.height = adaptRatioStr(546);
     qubitStateDiracImagePanel.paddingTop = adaptRatioStr(10);
     advancedTexture.addControl(qubitStateDiracImagePanel);
+    responsiveTargets.diracPanels.push(qubitStateDiracImagePanel);
 
     var qubitStateDiracImage = new BABYLON.GUI.Image("but", "images/qubit-state-dirac.png");
     qubitStateDiracImage.width = adaptRatioStr(546);
@@ -282,6 +433,7 @@ function createScene(engine, canvas, config) {
     qubitStateDiracTextPanel.height = adaptRatioStr(546);
     qubitStateDiracTextPanel.paddingTop = adaptRatioStr(10);
     advancedTexture.addControl(qubitStateDiracTextPanel);
+    responsiveTargets.diracPanels.push(qubitStateDiracTextPanel);
 
     var qubitStateDiracTextBlock = new BABYLON.GUI.TextBlock();
     qubitStateDiracTextBlock.text = "Dirac notation will go here";
@@ -454,6 +606,7 @@ function createScene(engine, canvas, config) {
 
 
     advancedTexture.addControl(statevectorInputText);
+    responsiveTargets.statevectorInput = statevectorInputText;
 
 
     /////// Control panel
@@ -493,21 +646,43 @@ function createScene(engine, canvas, config) {
     /////// END Control panel
 
 
+    // Setting the state by picking a point has to happen on release rather than
+    // on press, otherwise dragging the sphere to rotate the camera, which is the
+    // main gesture on a touch screen, would also move the qubit.
+    var pointerDownAt = null;
+    var tapSlopPixels = 8;
+
     scene.onPointerObservable.add((pointerInfo) => {
         switch (pointerInfo.type) {
             case BABYLON.PointerEventTypes.POINTERDOWN:
-                // TODO: Find out how to identify that sphere was picked
-                if (pointerInfo.pickInfo.hit && pointerInfo.pickInfo.pickedMesh == blochSphere.sphere) {
-                    //if(pointerInfo.pickInfo.hit) {
-                    blochSphere.setCartesianCoords(pointerInfo.pickInfo.pickedPoint);
+                pointerDownAt = { x: scene.pointerX, y: scene.pointerY };
+                break;
 
-                    // Picking a point on the sphere prepares that state and
+            case BABYLON.PointerEventTypes.POINTERUP:
+                if (!pointerDownAt) break;
+
+                var movedX = scene.pointerX - pointerDownAt.x;
+                var movedY = scene.pointerY - pointerDownAt.y;
+                pointerDownAt = null;
+                if (Math.sqrt(movedX * movedX + movedY * movedY) > tapSlopPixels) break;
+
+                var pick = pointerInfo.pickInfo;
+                // TODO: Find out how to identify that sphere was picked
+                if (pick && pick.hit && pick.pickedMesh == blochSphere.sphere) {
+                    blochSphere.setCartesianCoords(pick.pickedPoint);
+
+                    // Tapping a point on the sphere prepares that state and
                     // starts a new circuit from there.
                     quantumSimulator.prepareState(QubitState.fromAngles(
                         blochSphere.getInclinationRadians(), blochSphere.getAzimuthRadians()));
                 }
                 break;
         }
+    });
+
+    applyResponsiveLayout(config);
+    window.addEventListener('resize', function() {
+        applyResponsiveLayout(config);
     });
 
     //blochSphere.updateQuantumStateLine();

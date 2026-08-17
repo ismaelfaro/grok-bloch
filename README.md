@@ -27,6 +27,16 @@ on a perfect qubit and once on a qubit with the noise of a real device.
 * the **orange ghost arrow** is where the state should have been
 * the **score** is the state fidelity between the two, out of 100
 
+## On a phone
+
+The layout adapts to the screen. The gate buttons shrink to two narrow columns,
+the sphere is reframed so that it, its labels and the phase disk all fit, and the
+Noise Lab becomes a bottom sheet that starts folded away with the score still
+showing in its header. Tap the header to open it.
+
+Dragging anywhere on the sphere rotates the camera; a tap without dragging sets
+the state to that point.
+
 ## What it simulates
 
 | Effect | Where it comes from | What you see |
