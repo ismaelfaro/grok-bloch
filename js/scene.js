@@ -1,5 +1,10 @@
 var blochSphere = null;
 
+// Runs every gate on an ideal qubit and on a noisy one at the same time. Gate
+// buttons go through it rather than straight to the Bloch sphere, so that
+// clicking a gate is itself a (possibly noisy) execution.
+var quantumSimulator = null;
+
 let ground = null;
 const groundPositionVertical = -1.8;
 
@@ -16,6 +21,10 @@ var probAmplitudeTextBlock1 = new BABYLON.GUI.TextBlock();
 var probabilityTextBlock0 = new BABYLON.GUI.TextBlock();
 var probabilityTextBlock1 = new BABYLON.GUI.TextBlock();
 var azimuthRadiansTextBlock = new BABYLON.GUI.TextBlock();
+
+// Warns that the Dirac notation above is only the closest pure state, because a
+// decohered qubit has no state vector of its own.
+var mixedStateTextBlock = new BABYLON.GUI.TextBlock();
 
 var outcomeProbabilityBar = new BABYLON.GUI.Slider();
 
@@ -34,6 +43,14 @@ function createScene(engine, canvas, config) {
     var rxm,rxp, rym, ryp, rzm, rzp = null;
 
     blochSphere = new BlochSphere("blochSphere", scene, 0, 0);
+
+    quantumSimulator = new NoisySimulator(blochSphere);
+    // Keep the 2D readouts in step with whatever the simulator does, including
+    // the gates it runs by itself during playback.
+    quantumSimulator.addChangeListener(function() {
+        updateQuantumStateDisplay(config);
+    });
+    window.quantumSimulator = quantumSimulator;
 
     BABYLON.SceneOptimizer.OptimizeAsync(scene);
 
@@ -93,7 +110,7 @@ function createScene(engine, canvas, config) {
 
     advancedTexture.addControl(outcomeProbabilityPanel);
     outcomeProbabilityPanel.linkWithMesh(blochSphere);
-    outcomeProbabilityPanel.linkOffsetX = adaptRatioStr(-390);
+    outcomeProbabilityPanel.linkOffsetX = adaptRatioStr(-320);
     /////// END Outcome probability panel, bar, and labels
 
 
@@ -143,32 +160,27 @@ function createScene(engine, canvas, config) {
     }
 
     var zeroStateBtn = CreateImageButton("textures/zero-state.png", buttonSize, paddingTop, () => {
-        blochSphere.setProbAmplitudes(math.complex(1, 0), math.complex(0, 0));
-        updateQuantumStateDisplay(config);
+        quantumSimulator.prepareState(QubitState.zeroState());
     });
     leftPanel.addControl(zeroStateBtn);
 
     var xGateBtn = CreateImageButton("textures/x-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.X);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(Gate.X);
     });
     leftPanel.addControl(xGateBtn);
     
     var yGateBtn = CreateImageButton("textures/y-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.Y);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(Gate.Y);
     });
     leftPanel.addControl(yGateBtn);
 
     var zGateBtn = CreateImageButton("textures/z-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.Z);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(Gate.Z);
     });
     leftPanel.addControl(zGateBtn);
 
     var hGateBtn = CreateImageButton("textures/h-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.H);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(Gate.H);
     });
     leftPanel.addControl(hGateBtn);
 
@@ -182,50 +194,42 @@ function createScene(engine, canvas, config) {
     });
 
     var rxPi12GateBtn = CreateImageButton("textures/rx+gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(rxp);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(rxp);
     });
     leftPanel.addControl(rxPi12GateBtn);
 
     var ryPi12GateBtn = CreateImageButton("textures/ry+gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(ryp);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(ryp);
     });
     leftPanel.addControl(ryPi12GateBtn);
 
     var rzPi12GateBtn = CreateImageButton("textures/rz+gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(rzp);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(rzp);
     });
     leftPanel.addControl(rzPi12GateBtn);
 
     var oneStateBtn = CreateImageButton("textures/one-state.png", buttonSize, paddingTop, () => {
-        blochSphere.setProbAmplitudes(math.complex(0, 0), math.complex(1, 0));
-        updateQuantumStateDisplay(config);
+        quantumSimulator.prepareState(QubitState.oneState());
     });
     rightPanel.addControl(oneStateBtn);
 
     var sGateBtn = CreateImageButton("textures/s-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.S);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(Gate.S);
     });
     rightPanel.addControl(sGateBtn);
 
     var sDagGateBtn = CreateImageButton("textures/s-dag-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.St);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(Gate.St);
     });
     rightPanel.addControl(sDagGateBtn);
 
     var tGateBtn = CreateImageButton("textures/t-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.T);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(Gate.T);
     });
     rightPanel.addControl(tGateBtn);
 
     var tDagGateBtn = CreateImageButton("textures/t-dag-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(Gate.Tt);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(Gate.Tt);
     });
     rightPanel.addControl(tDagGateBtn);
 
@@ -239,20 +243,17 @@ function createScene(engine, canvas, config) {
     });
 
     var rxmPi12GateBtn = CreateImageButton("textures/rx-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(rxm);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(rxm);
     });
     rightPanel.addControl(rxmPi12GateBtn);
 
     var rymPi12GateBtn = CreateImageButton("textures/ry-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(rym);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(rym);
     });
     rightPanel.addControl(rymPi12GateBtn);
 
     var rzmPi12GateBtn = CreateImageButton("textures/rz-gate.png", buttonSize, paddingTop, () => {
-        blochSphere.applyGate(rzm);
-        updateQuantumStateDisplay(config);
+        quantumSimulator.applyGate(rzm);
     });
     rightPanel.addControl(rzmPi12GateBtn);
    
@@ -322,6 +323,12 @@ function createScene(engine, canvas, config) {
     quantumStateDiracGrid.addColumnDefinition(adaptRatio(50), true);
 
     qubitStateDiracTextPanel.addControl(quantumStateDiracGrid);
+
+    mixedStateTextBlock.text = "";
+    mixedStateTextBlock.color = "#cf222e";
+    mixedStateTextBlock.fontSize = config.fontSize * 0.6;
+    mixedStateTextBlock.height = adaptRatioStr(26);
+    qubitStateDiracTextPanel.addControl(mixedStateTextBlock);
     //// END Dirac notation grid
 
 
@@ -436,7 +443,9 @@ function createScene(engine, canvas, config) {
                     strToComplexNum(tempStateStrArray[idx - 1]),
                     strToComplexNum(tempStateStrArray[idx])
                 );
-                updateQuantumStateDisplay(config);
+                // A pasted state becomes the new starting point of the simulation.
+                quantumSimulator.prepareState(QubitState.fromAngles(
+                    blochSphere.getInclinationRadians(), blochSphere.getAzimuthRadians()));
             }
         }
         blochSphere.setAllowMultipleStateLines(false);
@@ -490,11 +499,12 @@ function createScene(engine, canvas, config) {
                 // TODO: Find out how to identify that sphere was picked
                 if (pointerInfo.pickInfo.hit && pointerInfo.pickInfo.pickedMesh == blochSphere.sphere) {
                     //if(pointerInfo.pickInfo.hit) {
-                    console.log("pickedPoint: " + pointerInfo.pickInfo.pickedPoint);
-
                     blochSphere.setCartesianCoords(pointerInfo.pickInfo.pickedPoint);
-                    //blochSphere.updateQuantumStateLine();
-                    updateQuantumStateDisplay(config);
+
+                    // Picking a point on the sphere prepares that state and
+                    // starts a new circuit from there.
+                    quantumSimulator.prepareState(QubitState.fromAngles(
+                        blochSphere.getInclinationRadians(), blochSphere.getAzimuthRadians()));
                 }
                 break;
         }
@@ -601,6 +611,12 @@ function updateQuantumStateDisplay(config) {
     quantumStateDiracGrid.addControl(probabilityTextBlock0, 1, 1)
     quantumStateDiracGrid.addControl(probabilityTextBlock1, 1, 3)
     quantumStateDiracGrid.addControl(azimuthRadiansTextBlock, 0, 5)
+
+    // A mixed state cannot be written as a single ket, so say so rather than
+    // letting the notation above claim more than it should.
+    var purity = blochSphere.getPurity();
+    mixedStateTextBlock.text = purity < 0.9995 ?
+        "mixed state — closest pure state shown, purity Tr(ρ²) = " + purity.toFixed(3) : "";
      ////// END Update Dirac notation
 
     quantumPhaseDisk.updateQuantumPhaseArrow();

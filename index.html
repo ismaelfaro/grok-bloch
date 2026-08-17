@@ -37,9 +37,12 @@
     <script src="js/thirdparty/babylon.js"></script>
     <script src="js/thirdparty/babylon.gui.min.js"></script>
     <script src="js/thirdparty/math.min.js"></script>
+    <script src="js/qubitstate.js"></script>
+    <script src="js/noisemodel.js"></script>
     <script src="js/blochsphere.js"></script>
     <script src="js/quantumphasedisk.js"></script>
     <script src="js/gate.js"></script>
+    <script src="js/noisysimulator.js"></script>
     <script src="js/scene.js"></script>
 
     <style>
@@ -51,18 +54,409 @@
             margin: 0;
             padding: 0;
         }
-        
+
         #renderCanvas {
             width: 100%;
             height: 100%;
             touch-action: none;
+        }
+
+        /* ---------- Noise lab panel ---------- */
+
+        #noiseLab {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 288px;
+            /* Leaves the state vector paste box at the bottom left reachable. */
+            max-height: calc(100% - 78px);
+            display: flex;
+            flex-direction: column;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            font-size: 12px;
+            color: #24292f;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            z-index: 10;
+        }
+
+        #noiseLab .nl-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border-bottom: 1px solid #d0d7de;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #noiseLab .nl-title {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        #noiseLab .nl-title .nl-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #b9bfc6;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        #noiseLab.nl-armed .nl-title .nl-dot {
+            background: #cf222e;
+            box-shadow: 0 0 6px rgba(207, 34, 46, 0.8);
+        }
+
+        #noiseLab .nl-body {
+            overflow-y: auto;
+            padding: 4px 10px 10px 10px;
+        }
+
+        #noiseLab.nl-collapsed .nl-body {
+            display: none;
+        }
+
+        #noiseLab .nl-section {
+            padding: 8px 0;
+            border-top: 1px solid #eaeef2;
+        }
+
+        #noiseLab .nl-section:first-child {
+            border-top: none;
+        }
+
+        #noiseLab .nl-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        #noiseLab .nl-label span.nl-value {
+            font-weight: 400;
+            color: #57606a;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #noiseLab .nl-note {
+            color: #57606a;
+            font-size: 11px;
+            line-height: 1.35;
+            margin: 4px 0;
+        }
+
+        #noiseLab select,
+        #noiseLab textarea {
+            width: 100%;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 12px;
+            padding: 4px;
+            border: 1px solid #d0d7de;
+            border-radius: 5px;
+            background: #fff;
+            color: #24292f;
+        }
+
+        #noiseLab textarea {
+            height: 70px;
+            resize: vertical;
+            font-family: ui-monospace, Menlo, Consolas, monospace;
+            font-size: 10px;
+        }
+
+        #noiseLab input[type=range] {
+            width: 100%;
+            margin: 0;
+        }
+
+        #noiseLab button {
+            font-family: inherit;
+            font-size: 11px;
+            padding: 4px 8px;
+            border: 1px solid #d0d7de;
+            border-radius: 5px;
+            background: #f6f8fa;
+            color: #24292f;
+            cursor: pointer;
+        }
+
+        #noiseLab button:hover:enabled {
+            background: #eaeef2;
+        }
+
+        #noiseLab button:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
+        #noiseLab button.nl-primary {
+            background: #1f883d;
+            border-color: #1a7f37;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        #noiseLab button.nl-primary:hover:enabled {
+            background: #1a7f37;
+        }
+
+        #noiseLab .nl-check {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 4px 0;
+            cursor: pointer;
+        }
+
+        #noiseLab .nl-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 6px;
+        }
+
+        #noiseLab .nl-specs {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 1px 8px;
+            font-variant-numeric: tabular-nums;
+            color: #57606a;
+            margin-top: 5px;
+        }
+
+        #noiseLab .nl-specs b {
+            color: #24292f;
+            font-weight: 500;
+            text-align: right;
+        }
+
+        #noiseLab .nl-program {
+            min-height: 24px;
+            max-height: 76px;
+            overflow-y: auto;
+            padding: 4px;
+            border: 1px dashed #d0d7de;
+            border-radius: 5px;
+            background: #f6f8fa;
+        }
+
+        #noiseLab .nl-chip {
+            display: inline-block;
+            padding: 1px 6px;
+            margin: 2px 2px 0 0;
+            border-radius: 10px;
+            background: #ddf4ff;
+            border: 1px solid #b6e3ff;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        #noiseLab .nl-chip.nl-done {
+            background: #eaeef2;
+            border-color: #d0d7de;
+            color: #57606a;
+        }
+
+        #noiseLab .nl-chip.nl-current {
+            background: #fff8c5;
+            border-color: #d4a72c;
+            font-weight: 600;
+        }
+
+        #noiseLab .nl-score-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        #noiseLab .nl-score {
+            font-size: 28px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.1;
+        }
+
+        #noiseLab .nl-score-unit {
+            color: #57606a;
+        }
+
+        #noiseLab .nl-grade {
+            margin-left: auto;
+            padding: 1px 9px;
+            border-radius: 5px;
+            font-weight: 700;
+            font-size: 15px;
+            color: #fff;
+            background: #57606a;
+        }
+
+        #noiseLab .grade-a {
+            background: #1f883d;
+        }
+
+        #noiseLab .grade-b {
+            background: #6fa53d;
+        }
+
+        #noiseLab .grade-c {
+            background: #bf8700;
+        }
+
+        #noiseLab .grade-d {
+            background: #d4691e;
+        }
+
+        #noiseLab .grade-f {
+            background: #cf222e;
+        }
+
+        #noiseLab .nl-bar {
+            height: 7px;
+            border-radius: 4px;
+            background: #eaeef2;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+
+        #noiseLab .nl-bar div {
+            height: 100%;
+            width: 100%;
+            background: #1f883d;
+            transition: width 0.2s ease, background 0.2s ease;
+        }
+
+        #noiseLab .nl-error {
+            color: #cf222e;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        #noiseLab .nl-legend {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            color: #57606a;
+            margin-top: 3px;
+        }
+
+        #noiseLab .nl-swatch {
+            width: 18px;
+            height: 3px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            #noiseLab {
+                color: #24292f;
+            }
         }
     </style>
 </head>
 
 <body>
     <canvas id="renderCanvas"></canvas>
+
+    <div id="noiseLab">
+        <div class="nl-header" id="nlHeader">
+            <span class="nl-title"><span class="nl-dot"></span>Qubit Noise Lab</span>
+            <button id="nlToggle" title="Show or hide the noise lab">Hide</button>
+        </div>
+        <div class="nl-body" id="nlBody">
+
+            <div class="nl-section">
+                <label class="nl-check"><input type="checkbox" id="nlEnabled"> <b>Simulate a real, noisy qubit</b></label>
+                <div class="nl-note">Every gate runs on an ideal qubit and on a noisy one at once.</div>
+                <div class="nl-legend"><span class="nl-swatch" style="background:#000"></span> noisy state <span class="nl-swatch" style="background:#d95a00"></span> ideal state</div>
+            </div>
+
+            <div class="nl-section">
+                <div class="nl-label">Qubit score <span class="nl-value">state fidelity vs. ideal</span></div>
+                <div class="nl-score-row">
+                    <span class="nl-score" id="nlScoreValue">100.00</span>
+                    <span class="nl-score-unit">/ 100</span>
+                    <span class="nl-grade grade-a" id="nlGrade">A+</span>
+                </div>
+                <div class="nl-bar"><div id="nlScoreBar"></div></div>
+                <div class="nl-specs" id="nlStats"></div>
+            </div>
+
+            <div class="nl-section">
+                <div class="nl-label">Circuit <span class="nl-value" id="nlProgramInfo">0 gates</span></div>
+                <div class="nl-program" id="nlProgram"></div>
+                <div class="nl-buttons">
+                    <button id="nlRun" class="nl-primary">▶ Run</button>
+                    <button id="nlStep">⏭ Step</button>
+                    <button id="nlStop">⏹ Stop</button>
+                    <button id="nlClear">🗑 Clear</button>
+                </div>
+                <div class="nl-buttons" style="align-items:center;">
+                    <label class="nl-check"><input type="checkbox" id="nlLoop"> Loop</label>
+                    <label class="nl-check" style="margin-left:auto;">Speed <input type="range" id="nlSpeed" min="60" max="1500" step="20" value="600" style="width:80px"></label>
+                </div>
+                <div class="nl-note">Every gate button you press is recorded here. Run replays the whole sequence through the noise model.</div>
+            </div>
+
+            <div class="nl-section">
+                <div class="nl-label">Measure</div>
+                <div class="nl-buttons">
+                    <button id="nlShots">1024 shots</button>
+                    <button id="nlIdleNow">Let it idle</button>
+                </div>
+                <div class="nl-specs" id="nlShotsOut"></div>
+            </div>
+
+            <div class="nl-section">
+                <div class="nl-label">Device noise model</div>
+                <select id="nlModel"></select>
+                <div class="nl-note" id="nlModelDesc"></div>
+                <div class="nl-specs" id="nlModelSpecs"></div>
+                <div class="nl-buttons">
+                    <button id="nlLoadFile">Load calibration JSON…</button>
+                    <button id="nlPasteToggle">Paste JSON</button>
+                </div>
+                <input type="file" id="nlFile" accept=".json,application/json" style="display:none">
+                <div id="nlPasteBox" style="display:none; margin-top:6px;">
+                    <textarea id="nlPasteText" placeholder="Paste the output of backend.properties().to_dict() here"></textarea>
+                    <div class="nl-buttons">
+                        <button id="nlPasteApply" class="nl-primary">Apply</button>
+                        <button id="nlPasteCancel">Cancel</button>
+                    </div>
+                </div>
+                <div id="nlLoadError" class="nl-error" style="display:none;"></div>
+                <div id="nlQubitPickRow" style="display:none; margin-top:6px;">
+                    <div class="nl-label">Physical qubit</div>
+                    <select id="nlQubitPick"></select>
+                </div>
+            </div>
+
+            <div class="nl-section">
+                <div class="nl-label">Noise amplifier <span class="nl-value" id="nlScaleValue">×1</span></div>
+                <input type="range" id="nlScale" min="0" max="4" step="0.02" value="0">
+                <div class="nl-note">Teaching aid, not physics: multiplies every error rate and decoherence rate. Real single qubit gates are so good that you need this (or idle time) to see anything on the sphere.</div>
+
+                <div class="nl-label">Idle time after each gate <span class="nl-value" id="nlIdleValue">none</span></div>
+                <input type="range" id="nlIdle" min="0" max="5" step="0.02" value="0">
+                <div class="nl-note">Waiting is an operation too. Idle qubits keep decohering towards |0⟩.</div>
+
+                <div class="nl-label">Coherent over-rotation <span class="nl-value" id="nlOverRotValue">0%</span></div>
+                <input type="range" id="nlOverRot" min="-20" max="20" step="0.5" value="0">
+                <div class="nl-note">Miscalibrated pulses: the state stays pure but every gate turns a little too far.</div>
+            </div>
+
+        </div>
+    </div>
+
     <script src="js/main.js"></script>
+    <script src="js/noiselabpanel.js"></script>
 </body>
 
 </html>

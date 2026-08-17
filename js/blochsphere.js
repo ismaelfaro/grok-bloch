@@ -21,12 +21,24 @@ class BlochSphere extends BABYLON.Mesh {
         this.probAmplitude0 = math.complex(1, 0);
         this.probAmplitude1 = math.complex(0, 0);
 
+        // Bloch vector of the state actually being displayed. A pure state has
+        // length 1 and touches the surface; a decohered (mixed) state is
+        // shorter and its arrow ends inside the sphere.
+        this.blochVector = { x: 0, y: 0, z: 1 };
+        this.stateVectorLength = 1;
+
+        // Where the state would have been without noise, drawn as a ghost arrow.
+        this.idealBlochVector = { x: 0, y: 0, z: 1 };
+        this.showIdealVector = false;
+
         this.scene = scene;
         this.sphere = BABYLON.MeshBuilder.CreateSphere("sphere", { diameterX: 2.0, diameterY: 2.0, diameterZ: 2.0 }, scene);
         this.lineColor = new BABYLON.Color3(.3, .3, .3);
 
         this.quantumStateArrow = null;
         this.quantumStateArrowColor = new BABYLON.Color3(0, 0, 1);
+        this.idealStateArrow = null;
+        this.idealStateArrowColor = new BABYLON.Color3(0.85, 0.35, 0.0);
 
         this.allowMultipleStateLines = false;
 
@@ -58,20 +70,66 @@ class BlochSphere extends BABYLON.Mesh {
     }
 
     setProbAmplitudes(probAmp0, probAmp1) {
-        console.log("In setProbAmplitudes(), probAmp0: " + probAmp0 + ", probAmp1: " + probAmp1);
         this.probAmplitude0 = probAmp0;
         this.probAmplitude1 = probAmp1;
 
         var inclRads = 2 * math.acos(math.abs(probAmp0));
-        console.log("inclRads: " + inclRads);
         this.setInclinationRadians(inclRads);
 
         var probAmp0Polar = probAmp0.toPolar();
         var probAmp1Polar = probAmp1.toPolar();
         var azimRads = (probAmp1.toPolar().phi - probAmp0.toPolar().phi);
 
-        console.log("azimRads: " + azimRads);
         this.setAzimuthRadians(azimRads);
+    }
+
+    /**
+     * Displays a state given by its Bloch vector, which unlike probability
+     * amplitudes can also describe a mixed state produced by noise. Vectors
+     * shorter than 1 shrink the arrow towards the centre of the sphere.
+     */
+    setBlochVector(x, y, z) {
+        this.blochVector = { x: x, y: y, z: z };
+
+        var length = Math.sqrt(x * x + y * y + z * z);
+        this.stateVectorLength = Math.min(1, length);
+
+        if (length < 1e-9) {
+            this.inclinationRadians = 0;
+            this.azimuthRadians = 0;
+        } else {
+            this.inclinationRadians = Math.acos(Math.max(-1, Math.min(1, z / length)));
+            this.azimuthRadians = (Math.atan2(y, x) + Math.PI * 2) % (Math.PI * 2);
+        }
+
+        this.resetGlobalPhase();
+        this.updateQuantumStateArrow();
+    }
+
+    getBlochVector() {
+        return this.blochVector;
+    }
+
+    setIdealBlochVector(x, y, z) {
+        this.idealBlochVector = { x: x, y: y, z: z };
+        this.updateIdealStateArrow();
+    }
+
+    setShowIdealVector(showIdealVector) {
+        this.showIdealVector = showIdealVector;
+        this.updateIdealStateArrow();
+    }
+
+    /** Keeps the Bloch vector in step with the spherical angles (pure state). */
+    syncBlochVectorFromAngles() {
+        var inclination = this.inclinationRadians;
+        var azimuth = this.azimuthRadians;
+        this.blochVector = {
+            x: Math.sin(inclination) * Math.cos(azimuth),
+            y: Math.sin(inclination) * Math.sin(azimuth),
+            z: Math.cos(inclination)
+        };
+        this.stateVectorLength = 1;
     }
 
     // TODO: Combine both probAmplitude methods
@@ -91,17 +149,25 @@ class BlochSphere extends BABYLON.Mesh {
         return this.probAmplitude1;
     }
 
+    // Measurement probabilities come from the Bloch vector rather than from the
+    // amplitudes, because a mixed state has no amplitudes of its own.
     getProbability0() {
-        return Math.pow(math.abs(this.getProbAmplitude0()), 2);
+        return Math.max(0, Math.min(1, (1 + this.blochVector.z) / 2));
     }
 
     getProbability1() {
-        return Math.pow(math.abs(this.getProbAmplitude1()), 2);
+        return Math.max(0, Math.min(1, (1 - this.blochVector.z) / 2));
+    }
+
+    /** Tr(rho^2): 1 for a pure state, 0.5 for a completely decohered one. */
+    getPurity() {
+        var length = this.stateVectorLength;
+        return (1 + length * length) / 2;
     }
 
     setInclinationRadians(inclinationRadians) {
         this.inclinationRadians = inclinationRadians;
-        console.log("this.inclinationRadians: " + this.inclinationRadians);
+        this.syncBlochVectorFromAngles();
         this.updateQuantumStateArrow();
     }
 
@@ -111,7 +177,7 @@ class BlochSphere extends BABYLON.Mesh {
 
     setAzimuthRadians(azimuthRadians) {
         this.azimuthRadians = (azimuthRadians + Math.PI * 2) % (Math.PI * 2);
-        console.log("this.azimuthRadians: " + this.azimuthRadians);
+        this.syncBlochVectorFromAngles();
         this.updateQuantumStateArrow();
     }
 
@@ -133,9 +199,7 @@ class BlochSphere extends BABYLON.Mesh {
             [this.getProbAmplitude0()],
             [this.getProbAmplitude1()]
         ]);
-        console.log("currentQuantumState: " + currentQuantumState);
         var newQuantumState = math.multiply(gate.matrix, currentQuantumState);
-        console.log("newQuantumState: " + newQuantumState);
 
         var probAmp0 = math.subset(newQuantumState, math.index(0, 0));
         var probAmp1 = math.subset(newQuantumState, math.index(1, 0));
@@ -143,14 +207,19 @@ class BlochSphere extends BABYLON.Mesh {
         this.setProbAmplitudes(probAmp0, probAmp1);
     }
 
+    /**
+     * Recomputes the amplitudes from the spherical angles, dropping the
+     * unobservable global phase. It deliberately does not go through
+     * setProbAmplitudes(), so that the length of the Bloch vector, and with it
+     * the purity of a noisy state, is preserved.
+     */
     resetGlobalPhase() {
-        var probAmp0 = math.complex(Math.cos(this.getInclinationRadians() / 2), 0);
+        this.probAmplitude0 = math.complex(Math.cos(this.getInclinationRadians() / 2), 0);
         var sinHalfIncl = Math.sin(this.getInclinationRadians() / 2);
-        var probAmp1 = math.multiply(
+        this.probAmplitude1 = math.multiply(
             math.complex(Math.cos(this.getAzimuthRadians()),
                 Math.sin(this.getAzimuthRadians())),
             sinHalfIncl);
-        this.setProbAmplitudes(probAmp0, probAmp1);
     }
 
     /// Methods to construct the 3D Bloch sphere
@@ -227,46 +296,80 @@ class BlochSphere extends BABYLON.Mesh {
         minusKet.position = new BABYLON.Vector3(0, 0, 1.2);
         minusKet.isPickable = false;
         
-        this.quantumStateArrow = this.createQuantumStateArrow(); 
+        this.quantumStateArrow = this.createStateArrow(
+            new BABYLON.Color3(0.0, 0.0, 0.0), this.quantumStateArrowColor, 0.02, 0.05, 1.0);
+
+        // Ghost arrow showing the noiseless result, hidden until noise moves
+        // the real state away from it.
+        this.idealStateArrow = this.createStateArrow(
+            this.idealStateArrowColor, this.idealStateArrowColor, 0.012, 0.04, 0.45);
+        this.idealStateArrow.root.setEnabled(false);
 
         this.updateQuantumStateArrow();
+        this.updateIdealStateArrow();
     }
 
-    createQuantumStateArrow(){
-        var arrowInitPosition = new BABYLON.Vector3(0, 1, 0);
-    
-        var arrowMaterial = new BABYLON.StandardMaterial("myMaterial", this.scene);
-        arrowMaterial.diffuseColor = new BABYLON.Color3(0.0, 0.0, 0);
+    /**
+     * Builds an arrow pointing along +Y that can later be rotated into place and
+     * shortened. Returns the parts so the length can be changed without
+     * distorting the head.
+     */
+    createStateArrow(shaftColor, tipColor, shaftDiameter, ballDiameter, alpha) {
+        var arrowMaterial = new BABYLON.StandardMaterial("arrowMaterial", this.scene);
+        arrowMaterial.diffuseColor = shaftColor;
         arrowMaterial.specularColor = new BABYLON.Color3(0.0, 0.0, 0);
-        
+        arrowMaterial.alpha = alpha;
+
         var arrowPointMaterial = new BABYLON.StandardMaterial("arrowPointMaterial", this.scene);
-        arrowPointMaterial.diffuseColor = this.quantumStateArrowColor;
+        arrowPointMaterial.diffuseColor = tipColor;
         arrowPointMaterial.specularColor = new BABYLON.Color3(0.0, 0.0, 0);
+        arrowPointMaterial.alpha = alpha;
 
         var arrow = BABYLON.MeshBuilder.CreateLines("qStatePoints", { points: [this.sphere.position] }, this.scene);
         arrow.isPickable = false;
 
-        var arrowBase = BABYLON.MeshBuilder.CreateCylinder("arrowBase", { height: 1, diameter: 0.02 }, this.scene);
+        var arrowBase = BABYLON.MeshBuilder.CreateCylinder("arrowBase", { height: 1, diameter: shaftDiameter }, this.scene);
         arrowBase.isPickable = false;
         arrowBase.position = new BABYLON.Vector3(0, 0.5, 0);
         arrowBase.material = arrowMaterial;
         arrowBase.parent = arrow;
 
-        var arrowBall = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 0.05}, this.scene);
+        var arrowBall = BABYLON.MeshBuilder.CreateSphere("sphere", { diameter: ballDiameter }, this.scene);
         arrowBall.isPickable = false;
-        arrowBall.position = arrowInitPosition;
+        arrowBall.position = new BABYLON.Vector3(0, 1, 0);
         arrowBall.material = arrowPointMaterial;
-        
         arrowBall.parent = arrow;
-   
-        var quantumStateLineCap = BABYLON.MeshBuilder.CreateCylinder("quantumStateLineCap", { height: 0.1, diameterTop: 0.0, diameterBottom: 0.1,  subdivisions: 3 }, this.scene);
+
+        var quantumStateLineCap = BABYLON.MeshBuilder.CreateCylinder("quantumStateLineCap", { height: 0.1, diameterTop: 0.0, diameterBottom: 0.1, subdivisions: 3 }, this.scene);
         quantumStateLineCap.material = arrowMaterial;
         quantumStateLineCap.position = new BABYLON.Vector3(0, 0.95, 0);
         quantumStateLineCap.isPickable = false;
-
         quantumStateLineCap.parent = arrow;
 
-        return arrow
+        return { root: arrow, base: arrowBase, ball: arrowBall, cap: quantumStateLineCap };
+    }
+
+    /**
+     * Points an arrow along the given spherical angles and shortens it to the
+     * length of the Bloch vector.
+     */
+    orientArrow(arrow, inclinationRadians, azimuthRadians, length) {
+        if (!arrow) return;
+
+        arrow.root.rotation = new BABYLON.Vector3(-inclinationRadians, -azimuthRadians, 0);
+
+        var clampedLength = Math.max(0, Math.min(1, length));
+        // The shaft is a unit height cylinder, so scaling it in Y sets the length.
+        arrow.base.scaling.y = Math.max(clampedLength, 1e-3);
+        arrow.base.position.y = clampedLength / 2;
+        arrow.cap.position.y = Math.max(clampedLength - 0.05, 0);
+        arrow.ball.position.y = clampedLength;
+
+        // A fully mixed state has no direction at all, so hide the head.
+        var visible = clampedLength > 0.02;
+        arrow.cap.setEnabled(visible);
+        arrow.ball.setEnabled(visible);
+        arrow.base.setEnabled(visible);
     }
     
     createEquator() {
@@ -300,14 +403,25 @@ class BlochSphere extends BABYLON.Mesh {
     }
 
     updateQuantumStateArrow() {
-        // var coordinates = this.getCartesianCoords()
-        // if (!this.allowMultipleStateLines) {
-        //     if (this.quantumStateLine) this.quantumStateLine.dispose();
-        //     if (this.quantumStateLineCap) this.quantumStateLineCap.dispose();
-        // }
+        this.orientArrow(this.quantumStateArrow,
+            this.getInclinationRadians(),
+            this.getAzimuthRadians(),
+            this.stateVectorLength);
+    }
 
-        this.quantumStateArrow.rotation = new BABYLON.Vector3(-this.getInclinationRadians(), -this.getAzimuthRadians(), 0);
+    updateIdealStateArrow() {
+        if (!this.idealStateArrow) return;
 
+        this.idealStateArrow.root.setEnabled(this.showIdealVector);
+        if (!this.showIdealVector) return;
+
+        var vector = this.idealBlochVector;
+        var length = Math.sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
+        var inclination = length < 1e-9 ? 0 :
+            Math.acos(Math.max(-1, Math.min(1, vector.z / length)));
+        var azimuth = (Math.atan2(vector.y, vector.x) + Math.PI * 2) % (Math.PI * 2);
+
+        this.orientArrow(this.idealStateArrow, inclination, azimuth, Math.min(1, length));
     }
 
 }
